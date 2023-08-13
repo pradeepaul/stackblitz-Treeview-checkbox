@@ -1,96 +1,117 @@
 import React, { useState } from 'react';
 
-// Define the data structure
-const list = {
-  pc: {
-    ratinglife: { hasValue: ['ratinglife'] },
-    ratingquality: { hasValue: ['ratingquality'] },
-  },
-  mc: {
-    speed: { hasValue: ['speed'] },
-    capacity: { hasValue: ['capacity'] },
-  },
+const pc = {
+  ratinglife: { hasValue: ['ratinglife1', 'ratinglife2', 'ratinglife3'] },
+  ratingquality: { hasValue: ['ratingquality'] },
 };
 
-// Recursive CheckboxTree component
-interface CheckboxTreeProps {
-  data: Record<string, any>;
-  onCheckboxChange: (key: string, value: boolean) => void;
+interface CheckboxItem {
+  label: string;
+  checked: boolean;
 }
 
-const CheckboxTree: React.FC<CheckboxTreeProps> = ({
-  data,
-  onCheckboxChange,
-}) => {
-  const [expanded, setExpanded] = useState<string[]>([]);
+interface CheckboxGroup {
+  parent: CheckboxItem;
+  children: CheckboxItem[];
+}
 
-  const handleExpand = (key: string) => {
-    setExpanded((prevExpanded) => {
-      if (prevExpanded.includes(key)) {
-        return prevExpanded.filter((k) => k !== key);
-      } else {
-        return [...prevExpanded, key];
-      }
+const CheckboxTreeList: React.FC = () => {
+  const [checkboxState, setCheckboxState] = useState<CheckboxGroup[]>(() =>
+    Object.keys(pc).map((key) => {
+      const parentCheckbox: CheckboxItem = { label: key, checked: false };
+      const childrenCheckboxes: CheckboxItem[] = pc[key].hasValue.map(
+        (value) => ({
+          label: value,
+          checked: false,
+        })
+      );
+      return { parent: parentCheckbox, children: childrenCheckboxes };
+    })
+  );
+
+  // Function to set initial pre-selected data
+  const setPreSelectedData = () => {
+    // Example: Pre-select 'ratinglife1' and 'ratingquality'
+    const newCheckboxState = [...checkboxState];
+    newCheckboxState[0].children[0].checked = true; // Pre-select 'ratinglife1'
+    newCheckboxState[1].parent.checked = true; // Pre-select 'ratingquality'
+    setCheckboxState(newCheckboxState);
+  };
+
+  const handleParentCheckboxChange = (parentIndex: number) => {
+    const newCheckboxState = [...checkboxState];
+    newCheckboxState[parentIndex].parent.checked =
+      !newCheckboxState[parentIndex].parent.checked;
+
+    newCheckboxState[parentIndex].children.forEach((child) => {
+      child.checked = newCheckboxState[parentIndex].parent.checked;
     });
+
+    setCheckboxState(newCheckboxState);
   };
 
-  const renderNode = (key: string, node: any) => {
-    const isChecked = node.hasValue?.[0] || false;
-    const isExpanded = expanded.includes(key);
-    const hasChildren =
-      typeof node === 'object' && Object.keys(node).length > 0;
+  const handleChildCheckboxChange = (
+    parentIndex: number,
+    childIndex: number
+  ) => {
+    const newCheckboxState = [...checkboxState];
+    newCheckboxState[parentIndex].children[childIndex].checked =
+      !newCheckboxState[parentIndex].children[childIndex].checked;
 
-    return (
-      <div key={key}>
-        <label>
-          <input
-            type="checkbox"
-            checked={isChecked}
-            onChange={(e) => onCheckboxChange(key, e.target.checked)}
-          />
-          {key}
-        </label>
-        {hasChildren && (
-          <button onClick={() => handleExpand(key)}>
-            {isExpanded ? '-' : '+'}
-          </button>
-        )}
-        {isExpanded && hasChildren && (
-          <div style={{ marginLeft: '20px' }}>
-            {Object.entries(node).map(([childKey, childNode]) =>
-              renderNode(childKey, childNode)
-            )}
-          </div>
-        )}
-      </div>
+    const allChildrenSelected = newCheckboxState[parentIndex].children.every(
+      (child) => child.checked
     );
+    const anyChildSelected = newCheckboxState[parentIndex].children.some(
+      (child) => child.checked
+    );
+
+    newCheckboxState[parentIndex].parent.checked = allChildrenSelected;
+    newCheckboxState[parentIndex].parent.indeterminate =
+      anyChildSelected && !allChildrenSelected;
+
+    setCheckboxState(newCheckboxState);
   };
+
+  // Set the pre-selected data on component mount
+  React.useEffect(() => {
+    setPreSelectedData();
+  }, []);
 
   return (
     <div>
-      {Object.entries(data).map(([key, node]) => renderNode(key, node))}
+      {checkboxState.map((group, parentIndex) => (
+        <div key={group.parent.label}>
+          <label>
+            <input
+              type="checkbox"
+              checked={group.parent.checked}
+              onChange={() => handleParentCheckboxChange(parentIndex)}
+              ref={(el) => {
+                if (el) {
+                  el.indeterminate = group.parent.indeterminate;
+                }
+              }}
+            />
+            {group.parent.label}
+          </label>
+          {group.children.map((child, childIndex) => (
+            <div key={child.label}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={child.checked}
+                  onChange={() =>
+                    handleChildCheckboxChange(parentIndex, childIndex)
+                  }
+                />
+                {child.label}
+              </label>
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   );
 };
 
-// Main App component
-const App: React.FC = () => {
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
-
-  const handleCheckboxChange = (key: string, value: boolean) => {
-    setCheckedItems((prevCheckedItems) => ({
-      ...prevCheckedItems,
-      [key]: value,
-    }));
-  };
-
-  return (
-    <div>
-      <h1>Checkbox Tree List</h1>
-      <CheckboxTree data={list} onCheckboxChange={handleCheckboxChange} />
-      <pre>Checked Items: {JSON.stringify(checkedItems, null, 2)}</pre>
-    </div>
-  );
-};
-
-export default App;
+export default CheckboxTreeList;
