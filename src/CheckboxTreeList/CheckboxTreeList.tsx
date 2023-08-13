@@ -34,6 +34,7 @@ const CheckboxTreeList: React.FC<CheckboxTreeListProps> = ({
       return { parent: parentCheckbox, children: childrenCheckboxes };
     })
   );
+  console.log('state', checkboxState);
 
   const handleParentCheckboxChange = (parentIndex: number) => {
     const newCheckboxState = [...checkboxState];
